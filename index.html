@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic To-Do List Web App|To-Do List Web App</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header with Quote -->
+        <header>
+            <h1><span>✨</span> Dynamic To-Do List Web App</h1>
+            <p id="daily-quote">"Productivity is never an accident."</p>
+            <p id="current-date">Monday, July 25, 2025</p>
+        </header>
+
+        <!-- Input Section -->
+        <div class="input-section">
+            <input type="text" id="task-input" placeholder="What's your next achievement?" autocomplete="off">
+            <button id="add-task-btn">
+                <i class="fas fa-plus"></i> Add
+            </button>
+        </div>
+
+        <!-- Task Filters -->
+        <div class="task-filters">
+            <button class="filter-btn active" data-filter="all">All Tasks</button>
+            <button class="filter-btn" data-filter="active">Active</button>
+            <button class="filter-btn" data-filter="completed">Completed</button>
+        </div>
+
+        <!-- Task List -->
+        <ul id="task-list"></ul>
+
+        <!-- Stats & Clear All -->
+        <div class="task-stats">
+            <span id="tasks-count">0 tasks</span>
+            <button id="clear-all-btn">Clear All</button>
+        </div>
+
+        <!-- Dark Mode Toggle -->
+        <button id="dark-mode-toggle">
+            <i class="fas fa-moon"></i>
+        </button>
+    </div>
+
+    <!-- Sound Effects (optional) -->
+    <audio id="add-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-positive-interface-beep-221.mp3"></audio>
+    <audio id="delete-sound" src="https://assets.mixkit.co/sfx/preview/mixkit-arcade-game-jump-coin-216.mp3"></audio>
+    <audio id="complete-sound"
+        src="https://assets.mixkit.co/sfx/preview/mixkit-unlock-game-notification-253.mp3"></audio>
+
+    <script src="script.js"></script>
+</body>
+
+</html>
