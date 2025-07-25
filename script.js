@@ -1,74 +1,73 @@
 document.addEventListener('DOMContentLoaded', function () {
     // DOM Elements
     const taskInput = document.getElementById('task-input');
-    const addBtn = document.getElementById('add-task-btn');
+    const addBtn = document.getElementById('add-btn');
     const taskList = document.getElementById('task-list');
     const filterBtns = document.querySelectorAll('.filter-btn');
-    const clearAllBtn = document.getElementById('clear-all-btn');
+    const clearAllBtn = document.getElementById('clear-all');
     const tasksCount = document.getElementById('tasks-count');
-    const darkModeToggle = document.getElementById('dark-mode-toggle');
-    const dailyQuote = document.getElementById('daily-quote');
-    const currentDate = document.getElementById('current-date');
+    const dateDisplay = document.getElementById('date-display');
 
-    // Motivational Quotes
-    const quotes = [
-        "Productivity is never an accident.",
-        "Small steps every day lead to big results.",
-        "Done is better than perfect.",
-        "Stay focused and never give up.",
-        "The secret of getting ahead is getting started."
-    ];
+    // Sound Elements
+    const addSound = document.getElementById('add-sound');
+    const deleteSound = document.getElementById('delete-sound');
+    const completeSound = document.getElementById('complete-sound');
 
-    // Set random quote
-    dailyQuote.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+    // Current filter
+    let currentFilter = 'all';
 
     // Set current date
     const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-    currentDate.textContent = new Date().toLocaleDateString('en-US', options);
-
-    // Dark Mode Toggle
-    darkModeToggle.addEventListener('click', () => {
-        document.body.classList.toggle('dark-mode');
-        darkModeToggle.innerHTML = document.body.classList.contains('dark-mode')
-            ? '<i class="fas fa-sun"></i>'
-            : '<i class="fas fa-moon"></i>';
-    });
+    dateDisplay.textContent = new Date().toLocaleDateString('en-US', options);
 
     // Load tasks from localStorage
     loadTasks();
 
-    // Add Task
+    // Event Listeners
     addBtn.addEventListener('click', addTask);
-    taskInput.addEventListener('keypress', (e) => {
+    taskInput.addEventListener('keypress', function (e) {
         if (e.key === 'Enter') addTask();
     });
 
-    // Clear All Tasks
-    clearAllBtn.addEventListener('click', () => {
-        if (taskList.children.length > 0 && confirm('Clear all tasks?')) {
-            taskList.innerHTML = '';
-            localStorage.removeItem('tasks');
-            updateTaskCount();
+    clearAllBtn.addEventListener('click', clearAllTasks);
+
+    // Event delegation for task list
+    taskList.addEventListener('click', function (e) {
+        // Check if click was on checkbox
+        if (e.target.classList.contains('task-checkbox')) {
+            toggleTask(e);
+        }
+        // Check if click was on delete button
+        else if (e.target.closest('.delete-btn')) {
+            deleteTask(e);
         }
     });
 
-    // Filter Tasks
+    // Filter buttons
     filterBtns.forEach(btn => {
-        btn.addEventListener('click', () => {
+        btn.addEventListener('click', function () {
             filterBtns.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filterTasks(btn.dataset.filter);
+            this.classList.add('active');
+            currentFilter = this.dataset.filter;
+            filterTasks();
         });
     });
 
     // Add a new task
     function addTask() {
         const taskText = taskInput.value.trim();
-        if (!taskText) return;
+        if (!taskText) {
+            // Show error animation
+            taskInput.classList.add('error');
+            setTimeout(() => taskInput.classList.remove('error'), 1000);
+            return;
+        }
 
-        // Play sound
-        document.getElementById('add-sound').play();
+        // Play add sound
+        addSound.currentTime = 0;
+        addSound.play();
 
+        // Create task object
         const task = {
             id: Date.now(),
             text: taskText,
@@ -76,8 +75,15 @@ document.addEventListener('DOMContentLoaded', function () {
             createdAt: new Date().toISOString()
         };
 
+        // Add to DOM
         addTaskToDOM(task);
-        saveTask(task);
+
+        // Add to localStorage
+        const tasks = getTasks();
+        tasks.push(task);
+        saveTasks(tasks);
+
+        // Clear input and update count
         taskInput.value = '';
         updateTaskCount();
     }
@@ -94,9 +100,6 @@ document.addEventListener('DOMContentLoaded', function () {
             <button class="delete-btn"><i class="fas fa-trash"></i></button>
         `;
 
-        li.querySelector('.task-checkbox').addEventListener('change', toggleTask);
-        li.querySelector('.delete-btn').addEventListener('click', deleteTask);
-
         if (task.completed) li.classList.add('completed');
 
         taskList.appendChild(li);
@@ -106,13 +109,19 @@ document.addEventListener('DOMContentLoaded', function () {
     function toggleTask(e) {
         const taskId = parseInt(e.target.closest('.task-item').dataset.id);
         const tasks = getTasks();
-        const task = tasks.find(t => t.id === taskId);
+        const taskIndex = tasks.findIndex(task => task.id === taskId);
 
-        if (task) {
-            task.completed = e.target.checked;
-            localStorage.setItem('tasks', JSON.stringify(tasks));
+        if (taskIndex !== -1) {
+            tasks[taskIndex].completed = e.target.checked;
+            saveTasks(tasks);
+
+            // Play complete sound
+            completeSound.currentTime = 0;
+            completeSound.play();
+
+            // Update DOM
             e.target.closest('.task-item').classList.toggle('completed');
-            document.getElementById('complete-sound').play();
+            filterTasks();
             updateTaskCount();
         }
     }
@@ -121,20 +130,48 @@ document.addEventListener('DOMContentLoaded', function () {
     function deleteTask(e) {
         const taskId = parseInt(e.target.closest('.task-item').dataset.id);
         const tasks = getTasks().filter(task => task.id !== taskId);
+        saveTasks(tasks);
 
-        localStorage.setItem('tasks', JSON.stringify(tasks));
-        e.target.closest('.task-item').classList.add('fade-out');
+        // Play delete sound
+        deleteSound.currentTime = 0;
+        deleteSound.play();
+
+        // Animate removal
+        const taskItem = e.target.closest('.task-item');
+        taskItem.style.transform = 'translateX(100%)';
+        taskItem.style.opacity = '0';
 
         setTimeout(() => {
-            e.target.closest('.task-item').remove();
+            taskItem.remove();
             updateTaskCount();
         }, 300);
+    }
 
-        document.getElementById('delete-sound').play();
+    // Clear all tasks
+    function clearAllTasks() {
+        if (taskList.children.length === 0) return;
+
+        if (confirm('Are you sure you want to delete all tasks?')) {
+            // Animate removal of all tasks
+            const items = document.querySelectorAll('.task-item');
+            items.forEach((item, index) => {
+                setTimeout(() => {
+                    item.style.transform = 'translateX(100%)';
+                    item.style.opacity = '0';
+                    setTimeout(() => item.remove(), 300);
+                }, index * 100);
+            });
+
+            // Clear localStorage
+            localStorage.removeItem('tasks');
+
+            // Update count after animations complete
+            setTimeout(updateTaskCount, items.length * 100 + 300);
+        }
     }
 
     // Filter tasks
-    function filterTasks(filter) {
+    function filterTasks() {
         const tasks = getTasks();
         const taskItems = document.querySelectorAll('.task-item');
 
@@ -142,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const taskId = parseInt(item.dataset.id);
             const task = tasks.find(t => t.id === taskId);
 
-            switch (filter) {
+            switch (currentFilter) {
                 case 'all':
                     item.style.display = 'flex';
                     break;
@@ -156,13 +193,13 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Update task counter
+    // Update task count
     function updateTaskCount() {
         const tasks = getTasks();
-        const total = tasks.length;
-        const completed = tasks.filter(task => task.completed).length;
+        const totalTasks = tasks.length;
+        const completedTasks = tasks.filter(task => task.completed).length;
 
-        tasksCount.textContent = `${completed} of ${total} tasks done`;
+        tasksCount.textContent = `${completedTasks} of ${totalTasks} tasks completed`;
     }
 
     // Load tasks from localStorage
@@ -170,6 +207,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const tasks = getTasks();
         tasks.forEach(task => addTaskToDOM(task));
         updateTaskCount();
+        filterTasks();
     }
 
     // Get tasks from localStorage
@@ -177,10 +215,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return JSON.parse(localStorage.getItem('tasks')) || [];
     }
 
-    // Save task to localStorage
-    function saveTask(task) {
-        const tasks = getTasks();
-        tasks.push(task);
+    // Save tasks to localStorage
+    function saveTasks(tasks) {
         localStorage.setItem('tasks', JSON.stringify(tasks));
     }
 });
